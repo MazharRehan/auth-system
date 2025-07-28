@@ -56,8 +56,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Index for performance
-userSchema.index({ email: 1 });
-userSchema.index({ refreshTokens: 1 });
+userSchema.index({ 'refreshTokens.token': 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
