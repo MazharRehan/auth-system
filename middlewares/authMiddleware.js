@@ -1,6 +1,13 @@
+/* Middlewares are functions that run before the final request handler.
+They can modify the request, response, or perform actions before the request reaches the final handler.
+This middleware is used to protect routes by verifying JWT tokens.
+It checks if the user is authenticated and has access to the requested resource.
+ */
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// protect middleware - checks if the user is authenticated
+// It verifies the JWT token and attaches the user to the request object
 const protect = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];

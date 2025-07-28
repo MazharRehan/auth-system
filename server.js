@@ -5,7 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
-const routes = require('./routes'); // Only this route import is needed
+const routes = require('./routes');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 
@@ -18,9 +18,9 @@ connectDB();
 const app = express();
 
 // Security middleware
-app.use(helmet());
-app.use(cors());
-app.use(cookieParser());
+app.use(helmet()); // Set security headers
+app.use(cors()); // Enable CORS(Cross-Origin Resource Sharing)
+app.use(cookieParser()); // Parse cookies
 
 // Rate limiting
 const limiter = rateLimit({
@@ -52,8 +52,8 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.use(mongoSanitize());
-app.use(xss());
+app.use(mongoSanitize()); // Sanitize user input to prevent NoSQL injection
+app.use(xss()); // Sanitize user input to prevent XSS (Cross-Site Scripting) attacks
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -1,3 +1,4 @@
+// defines the user-related routes for the application
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');

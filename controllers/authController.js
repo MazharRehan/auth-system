@@ -1,3 +1,4 @@
+// authorization controller
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const generateTokens = require('../utils/generateTokens');
