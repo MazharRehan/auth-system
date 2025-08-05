@@ -10,7 +10,8 @@ const User = require('../models/User');
 // It verifies the JWT token and attaches the user to the request object
 const protect = async (req, res, next) => {
     try {
-        const token = req.headers.authorization?.split(' ')[1];
+        const token = req.headers.authorization;
+        // console.log('Token:', token);
         
         if (!token) {
             return res.status(401).json({

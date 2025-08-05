@@ -56,6 +56,7 @@ app.use(mongoSanitize()); // Sanitize user input to prevent NoSQL injection
 app.use(xss()); // Sanitize user input to prevent XSS (Cross-Site Scripting) attacks
 
 const PORT = process.env.PORT || 3000;
+// Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
