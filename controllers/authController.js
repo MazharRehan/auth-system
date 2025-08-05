@@ -2,6 +2,9 @@
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const generateTokens = require('../utils/generateTokens');
+const sendEmail = require('../config/emailConfig');
+const { verificationEmailTemplate, resetPasswordEmailTemplate } = require('../utils/emailTemplates');
+const crypto = require('crypto');
 
 exports.register = async (req, res) => {
     try {
@@ -23,32 +26,36 @@ exports.register = async (req, res) => {
             });
         }
 
+        // Create user
         const user = await User.create({
             name,
             email,
             password
         });
 
-        const tokens = generateTokens(user._id);
+        // Generate verification token
+        const verificationToken = user.generateEmailVerificationToken();
+        await user.save();
+
+        // Create verification URL
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+
+        // Send verification email
+        await sendEmail({
+            to: user.email,
+            subject: 'Email Verification',
+            html: verificationEmailTemplate(verificationUrl)
+        });
 
         res.status(201).json({
             success: true,
-            message: 'User registered successfully',
-            data: {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    role: user.role
-                },
-                tokens
-            }
+            message: 'Registration successful. Please check your email to verify your account.'
         });
+
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Server error',
-            error: error.message
+            message: error.message
         });
     }
 };
@@ -59,7 +66,7 @@ exports.login = async (req, res) => {
 
         // Explicitly select password field
         const user = await User.findOne({ email, isDeleted: false }).select('+password');
-        
+
         // Check if user exists and is not deleted
         if (!user) {
             return res.status(401).json({
@@ -74,6 +81,13 @@ exports.login = async (req, res) => {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid email or password'
+            });
+        }
+
+        if (!user.isEmailVerified) {
+            return res.status(401).json({
+                success: false,
+                message: 'Please verify your email before logging in'
             });
         }
 
@@ -102,10 +116,114 @@ exports.login = async (req, res) => {
     }
 };
 
+// Verify email
+exports.verifyEmail = async (req, res) => {
+    try {
+        const hashedToken = crypto
+            .createHash('sha256')
+            .update(req.params.token)
+            .digest('hex');
 
+        const user = await User.findOne({
+            emailVerificationToken: hashedToken,
+            emailVerificationExpires: { $gt: Date.now() }
+        });
 
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired verification token'
+            });
+        }
 
-// ... other controller methods ...
+        user.isEmailVerified = true;
+        user.emailVerificationToken = undefined;
+        user.emailVerificationExpires = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Email verified successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Forgot password
+exports.forgotPassword = async (req, res) => {
+    try {
+        const user = await User.findOne({ email: req.body.email });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const resetToken = user.generatePasswordResetToken();
+        await user.save();
+
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+        await sendEmail({
+            to: user.email,
+            subject: 'Password Reset Request',
+            html: resetPasswordEmailTemplate(resetUrl)
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset email sent'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Reset password
+exports.resetPassword = async (req, res) => {
+    try {
+        const hashedToken = crypto
+            .createHash('sha256')
+            .update(req.params.token)
+            .digest('hex');
+
+        const user = await User.findOne({
+            passwordResetToken: hashedToken,
+            passwordResetExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired reset token'
+            });
+        }
+
+        user.password = req.body.password;
+        user.passwordResetToken = undefined;
+        user.passwordResetExpires = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset successful'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 
 exports.logout = async (req, res) => {
     try {
