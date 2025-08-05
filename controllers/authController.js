@@ -93,6 +93,14 @@ exports.login = async (req, res) => {
 
         const tokens = generateTokens(user._id);
 
+        // Set refresh token in HTTP-only cookie
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -103,7 +111,7 @@ exports.login = async (req, res) => {
                     email: user.email,
                     role: user.role
                 },
-                tokens
+                accessToken: tokens.accessToken
             }
         });
     } catch (error) {
@@ -191,6 +199,14 @@ exports.forgotPassword = async (req, res) => {
 // Reset password
 exports.resetPassword = async (req, res) => {
     try {
+        // Add password validation
+        if (!req.body.password || req.body.password.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters long'
+            });
+        }
+
         const hashedToken = crypto
             .createHash('sha256')
             .update(req.params.token)
