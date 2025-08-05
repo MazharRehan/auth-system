@@ -57,8 +57,20 @@ exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({ email }).select('+password');
-        if (!user || !(await user.comparePassword(password))) {
+        // Explicitly select password field
+        const user = await User.findOne({ email, isDeleted: false }).select('+password');
+        
+        // Check if user exists and is not deleted
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        // Use the comparePassword method from the User model
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid email or password'
@@ -81,6 +93,7 @@ exports.login = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',

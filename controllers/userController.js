@@ -61,26 +61,36 @@ exports.changePassword = async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
 
+        // Validate input
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Both current password and new password are required'
+            });
+        }
+
         // Get user with password
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.id).select('+password');
         
-        // Check if current password matches
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        
-        if (!isMatch) {
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Use the model's comparePassword method for consistency
+        const isPasswordValid = await user.comparePassword(currentPassword);
+        if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
                 message: 'Current password is incorrect'
             });
         }
 
-        // Hash new password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(newPassword, salt);
-        
-        // Update password
-        user.password = hashedPassword;
-        await user.save();  // This will trigger the pre-save hook
+        // Update password - this will trigger the pre-save hook for hashing
+        user.password = newPassword;
+        await user.save();
 
         res.status(200).json({
             success: true,
